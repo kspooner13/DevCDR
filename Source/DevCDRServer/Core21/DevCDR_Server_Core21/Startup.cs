@@ -89,6 +89,7 @@ namespace DevCDR
             app.UseSignalR(routes =>
             {
                 routes.MapHub<Default>("/chat");
+                routes.MapHub<Demo>("/ro/chat");
             });
 
             app.UseMvc(routes =>

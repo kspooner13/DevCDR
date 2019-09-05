@@ -10,10 +10,6 @@
 
 <small style="position:relative; top:-12px">Instance-ID: @ViewData["Instance"]</small>
 
-<div class="alert alert-danger" role="alert">
-    Warning: Devices in this instance can be controlled from everyone. Do not add any productive devices !!!
-</div>
-
 <ul class="nav nav-tabs" id="tabs">
     <li class="active"><a href="" data-toggle="tab">All Devices</a></li>
 </ul>
@@ -54,7 +50,7 @@
 
 @Html.Partial("_CustomPS")
 @Html.Partial("_ModalMessages")
-@Html.Partial("_Table")
+@Html.Partial("_TableRO")
 
 @*@await Component.InvokeAsync("ContextMenuLibrary.Simple", new { });*@
 @if (ViewData["ExtMenu"] != null)

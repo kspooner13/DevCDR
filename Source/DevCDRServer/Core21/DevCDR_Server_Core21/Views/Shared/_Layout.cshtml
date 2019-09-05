@@ -56,11 +56,12 @@
             </div>
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav">
-                    <li><a asp-area="" asp-controller="DevCDR" asp-action="Default">Devices</a></li>
+                    <li><a asp-area="" asp-controller="Demo" asp-action="Default">Demo (ReadOnly)</a></li>
+                    <li><a asp-area="" asp-controller="DevCDR" asp-action="Default">Test</a></li>
                     <li><a asp-area="" asp-controller="DevCDR" asp-action="About">About</a></li>
                     <li><a asp-area="" asp-controller="DevCDR" asp-action="Contact">Contact</a></li>
                 </ul>
-                @Html.Partial("_LoginPartial")
+                @*@Html.Partial("_LoginPartial")*@
             </div>
         </div>
     </nav>
