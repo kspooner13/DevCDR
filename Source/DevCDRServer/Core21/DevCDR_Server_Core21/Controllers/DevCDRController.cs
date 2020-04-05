@@ -632,6 +632,76 @@ namespace DevCDRServer.Controllers
             return null;
         }
 
+        [AllowAnonymous]
+        [HttpPost]
+        public ActionResult PutFile(string signature, string data = "")
+        {
+            X509AgentCert oSig = new X509AgentCert(signature);
+
+            try
+            {
+                if (X509AgentCert.publicCertificates.Count == 0)
+                    X509AgentCert.publicCertificates.Add(new X509Certificate2(Convert.FromBase64String(GetPublicCertAsync("DeviceCommander", false).Result))); //root
+
+                var xIssuing = new X509Certificate2(Convert.FromBase64String(GetPublicCertAsync(oSig.IssuingCA, false).Result));
+                if (!X509AgentCert.publicCertificates.Contains(xIssuing))
+                    X509AgentCert.publicCertificates.Add(xIssuing); //Issuing
+
+                oSig.ValidateChain(X509AgentCert.publicCertificates);
+            }
+            catch { }
+
+            if (oSig.Exists && oSig.Valid)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(data))
+                    {
+                        using (StreamReader reader = new StreamReader(Request.Body, Encoding.UTF8))
+                            data = reader.ReadToEnd();
+                    }
+
+                    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("fnDevCDR")))
+                    {
+                        string sURL = Environment.GetEnvironmentVariable("fnDevCDR");
+                        sURL = sURL.Replace("{fn}", "fnUploadFile");
+
+                        string sNewData = data;
+                        try
+                        {
+                            if (data.StartsWith("{"))
+                            {
+                                var jObj = JObject.Parse(data);
+
+                                jObj.Remove("OptionalFeature");
+                                if (jObj.Remove("Services"))
+                                {
+                                    sNewData = jObj.ToString(Formatting.None);
+                                }
+                            }
+                        }
+                        catch { }
+
+                        using (HttpClient client = new HttpClient())
+                        {
+                            StringContent oData = new StringContent(sNewData, Encoding.UTF8, "application/json");
+                            client.PostAsync($"{sURL}&deviceid={oSig.DeviceID}.json&customerid={oSig.CustomerID}", oData);
+                        }
+
+                        return new OkObjectResult(jDB.UploadFull(data, oSig.DeviceID, "INV"));
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex.Message.ToString();
+                    return new BadRequestResult();
+                }
+            }
+
+            return new OkResult();
+        }
+
         //#if DEBUG
         //        [AllowAnonymous]
         //#endif
