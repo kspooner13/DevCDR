@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -28,6 +29,7 @@ namespace DevCDRServer.Controllers
         private readonly IHubContext<Default> _hubContext;
         private readonly IHostingEnvironment _env;
         private IMemoryCache _cache;
+        private WebClient webclient = new WebClient();
         public DevCDR.Extensions.AzureLogAnalytics AzureLog = new DevCDR.Extensions.AzureLogAnalytics("","","");
 
         public DevCDRController(IHubContext<Default> hubContext, IHostingEnvironment env, IMemoryCache memoryCache)
@@ -560,6 +562,60 @@ namespace DevCDRServer.Controllers
 
 
             return "";
+        }
+
+        [AllowAnonymous]
+        public ActionResult CreateAlert(string data, string signature)
+        {
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("fnDevCDR")))
+            {
+                X509AgentCert oSig = new X509AgentCert(signature);
+
+                try
+                {
+                    if (X509AgentCert.publicCertificates.Count == 0)
+                        X509AgentCert.publicCertificates.Add(new X509Certificate2(Convert.FromBase64String(GetPublicCertAsync("DeviceCommander", false).Result))); //root
+
+                    var xIssuing = new X509Certificate2(Convert.FromBase64String(GetPublicCertAsync(oSig.IssuingCA, false).Result));
+                    if (!X509AgentCert.publicCertificates.Contains(xIssuing))
+                        X509AgentCert.publicCertificates.Add(xIssuing); //Issuing
+
+                    oSig.ValidateChain(X509AgentCert.publicCertificates);
+                }
+                catch { }
+
+                if (oSig.Exists && oSig.Valid)
+                {
+                    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("fnDevCDR")))
+                    {
+                        string customerInfo = "";
+
+                        string sURL = Environment.GetEnvironmentVariable("fnDevCDR");
+                        sURL = sURL.Replace("{fn}", "fnGetSumData");
+                        customerInfo = webclient.DownloadString($"{sURL}&secretname=AzureDevCDRCustomersTable&customerid={ oSig.CustomerID }");
+                        JArray aObj = JArray.Parse(customerInfo);
+                        JObject jCust = aObj[0] as JObject;
+
+                        sURL = Environment.GetEnvironmentVariable("fnDevCDR");
+                        sURL = sURL.Replace("{fn}", "fnSendMail");
+
+                        if (string.IsNullOrEmpty(data))
+                        {
+                            using (StreamReader reader = new StreamReader(Request.Body, Encoding.UTF8))
+                                data = reader.ReadToEndAsync().Result;
+                        }
+
+                        using (HttpClient client = new HttpClient())
+                        {
+                            StringContent oData = new StringContent(data, Encoding.UTF8, "application/json");
+                            var oPost = client.PostAsync($"{sURL}&to={jCust["contact"].ToString()}&subject=Alert", new StringContent(data));
+                            oPost.Wait(5000);
+                            return new OkResult();
+                        }
+                    }
+                }
+            }
+            return null;
         }
 
         [AllowAnonymous]
