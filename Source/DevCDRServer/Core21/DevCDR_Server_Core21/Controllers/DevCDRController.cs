@@ -106,6 +106,13 @@ namespace DevCDRServer.Controllers
         }
 
         [AllowAnonymous]
+        public ActionResult GetVersion()
+        {
+            return Content(typeof(DevCDRController).Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>().Version);
+        }
+
+
+        [AllowAnonymous]
         public ActionResult Contact()
         {
             ViewBag.Message = "Device Commander Contact....";
